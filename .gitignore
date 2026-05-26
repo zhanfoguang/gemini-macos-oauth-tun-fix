@@ -1,0 +1,16 @@
+*.dmg
+*.log
+*.plist
+*.sock
+*.db
+.DS_Store
+
+# Local experiments from the troubleshooting session.
+gemini_oauth_pf.conf
+install_gemini_oauth_pf.sh
+uninstall_gemini_oauth_pf.sh
+
+# Keep private proxy profiles and app support exports out of the repo.
+*.yaml.private
+profiles/
+logs/
