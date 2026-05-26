@@ -60,4 +60,4 @@ Some apps do not respect your proxy env/system proxy the way you think they do.
 
 8. Wrote up the full runbook here:
 
-TODO: add GitHub repo URL
+https://github.com/zhanfoguang/gemini-macos-oauth-tun-fix
