@@ -65,6 +65,17 @@ Starting core in service mode
 服务成功启动核心
 ```
 
+If instead you see `Starting core in sidecar mode`, check for a stale service first:
+
+```bash
+grep -i "service" \
+  "$HOME/Library/Application Support/io.github.clash-verge-rev.clash-verge-rev/logs/latest.log" | tail
+```
+
+A service/app version mismatch makes the app auto-prompt for an admin password reinstall on launch. If that dialog is cancelled, the app silently stays in sidecar mode, TUN cannot run, and the Service Mode toggle disappears from settings. The profile-level `tun:` block does not help — the runtime state stays `"enable": false`.
+
+Fix: quit and reopen Clash Verge, accept the password prompt, and confirm `Starting core in service mode` appears **before** enabling TUN. Enabling TUN on a sidecar core takes the network down.
+
 ## 4. Check TUN
 
 ```bash

@@ -80,3 +80,55 @@ http_code=404 time_total=1.213699
 `404` was expected for the probe. The important change was that it no longer timed out.
 
 Gemini login succeeded after retrying the OAuth flow.
+
+## 2026-08 Recurrence
+
+The same Gemini symptoms returned: a token-refresh loop with `transport error: 86` and `DEADLINE_EXCEEDED`.
+
+This time the profile config already had a valid `tun:` block, and direct connectivity failed again:
+
+```bash
+curl --noproxy '*' https://oauth2.googleapis.com/token   # timed out
+```
+
+The Clash Verge log explained why TUN was not running:
+
+```text
+[Service] 服务需要重装，执行重装流程
+[Service] failed to install service code: 1, details: 用户已取消 (-128)
+[Core] Starting core in sidecar mode
+```
+
+The app had detected a service version mismatch and auto-prompted for an admin password reinstall on launch. The dialog was cancelled, so the app silently fell back to sidecar mode. With no root privileges, TUN could not run, and the settings page showed no usable Service Mode switch.
+
+Enabling TUN in that state broke networking until it was switched back off.
+
+## Recovery
+
+Clash Verge was quit and reopened. This time the admin password dialog was accepted:
+
+```text
+[Service] install service
+[Core] Starting core in service mode
+[Service] 服务成功启动核心
+```
+
+The core then ran as root under the service process:
+
+```text
+50532  50529  root  verge-mihomo
+```
+
+TUN came up on `utun4` (`198.18.0.1`), and the probe returned quickly:
+
+```text
+http_code=404 time_total=1.083394 remote_ip=198.18.0.9
+```
+
+Gemini was quit and reopened. The existing session refreshed without a browser re-login:
+
+```text
+Request ...: 200 ... transport: 1
+Received access token for 'user1'
+signinStatus=signedIn
+```

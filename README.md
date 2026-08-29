@@ -133,6 +133,68 @@ This was not primarily a VPS problem, although an unstable VPS node can still ma
 
 Once Clash Verge Rev ran in service mode and TUN was enabled, Gemini login succeeded.
 
+## 2026-08 Recurrence: A Stale Service Silently Falls Back to Sidecar Mode
+
+Months later, the same Gemini symptoms returned: the app launched but stayed stuck in a token-refresh loop:
+
+```text
+Failed to refresh access token. Transport error: 86
+HandleAuthStatus: status=DEADLINE_EXCEEDED (TIMEOUT_EXCEEDED)
+```
+
+This time the profile config already contained a valid `tun:` block, so the config was not the problem. The failure was one layer lower.
+
+### What Actually Happened
+
+The Clash Verge Rev app had been updated, but the privileged service under `/Library/PrivilegedHelperTools` no longer matched it. On startup, the app detects the version mismatch and auto-prompts to reinstall the service with an admin password dialog:
+
+```text
+[Service] 服务需要重装，执行重装流程
+[Service] install service
+[Service] failed to install service code: 1, details: 用户已取消 (-128)
+[Core] Starting core in sidecar mode
+```
+
+The password dialog was dismissed, and the app **silently fell back to sidecar mode**. There is no persistent error anywhere in the UI. Worse, while the service is in this stale state the settings page does not offer a usable "Service Mode" toggle at all, which makes the root cause hard to find.
+
+Two extra traps appeared during recovery:
+
+- Writing `tun: enable: true` into the profile config or patching the mihomo API directly did nothing. The runtime TUN state stayed `"enable": false` — the app's own toggle overwrites the config at runtime.
+- Enabling TUN while the core was still in sidecar mode broke networking entirely until TUN was switched back off.
+
+### The Fix
+
+1. Quit Clash Verge completely and reopen it.
+2. When the admin password dialog appears, **enter the password**. This reinstalls the service.
+3. Confirm the logs show service mode:
+
+   ```text
+   [Core] Starting core in service mode
+   [Service] 服务成功启动核心
+   ```
+
+4. Confirm the core is root-owned and parented to the service process:
+
+   ```text
+   50532  50529  root  verge-mihomo ...
+   ```
+
+5. Enable TUN, then verify a `utun` interface with a `198.18.x.x` address appears and the no-proxy probe returns quickly.
+6. Quit and reopen Gemini. The existing session recovered without a browser re-login:
+
+   ```text
+   Request ...: 200 ... transport: 1
+   Received access token for 'user1'
+   signinStatus=signedIn
+   ```
+
+### Lessons
+
+- After updating Clash Verge Rev, never dismiss the admin password prompt at startup — cancelling it downgrades to sidecar mode silently.
+- The decisive log line is `Starting core in service mode` vs `Starting core in sidecar mode`. Check it first.
+- Order matters: service mode first, TUN second. TUN on a sidecar core takes the network down.
+- A `tun:` block inside the profile is not enough; the app-level TUN toggle governs the runtime state.
+
 ## Related Clues
 
 - Gemini CLI reports from users with OAuth token exchange timeouts against `oauth2.googleapis.com/token`.
